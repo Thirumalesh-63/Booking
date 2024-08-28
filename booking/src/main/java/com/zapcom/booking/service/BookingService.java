@@ -15,12 +15,31 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.List;
+
 import com.zapcom.booking.globalexceptionhandler.UserNotFound;
 import com.zapcom.booking.repository.BookingRepository;
 import com.zapcom.common.model.Booking;
@@ -29,48 +48,63 @@ import com.zapcom.common.model.Cruiseline;
 import com.zapcom.common.model.DatabaseSequence;
 import com.zapcom.common.model.User;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 
 @Service
 public class BookingService {
-	
+
 	Logger log=LoggerFactory.getLogger(BookingService.class);
 
 	@Autowired
 	private BookingRepository  bookingRepository;
-	
 
 	@Autowired
 	private MongoTemplate mongoTemplate;
 
-	
-	
-	//@Autowired
 	private RestTemplate restTemplate;
-	
-	
+
 	public BookingService(RestTemplateBuilder builder) {
-		
+
 		this.restTemplate=builder.build();
-		
+
 	}
 
-    // Create or Update Booking
-    public Booking saveBooking(Booking booking,int uid,int cid) {
-    	
-    	User user=restTemplate.getForObject("http://localhost:8080/user/{id}", User.class, uid);
-    	
-    	if(user.getName()==null) {
-    		throw new UserNotFound("user not found with the id "+ uid);
-    	}
-        Cruise cruise=restTemplate.getForObject("http://localhost:8081/cruise/{id}", Cruise.class, cid);
-        int id=generateSequence("Booking");
-        booking.setId(id);
-        booking.setUser(user);
-        booking.setCruise(cruise);
-    	return bookingRepository.save(booking);
-    }
-    
-    
+	// Create or Update Booking
+	public Booking saveBooking(Booking booking,int uid,int cid) {
+		HttpServletRequest request = 
+				((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		String jwtToken = request.getHeader("Authorization");  // Retrieve the token
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", jwtToken);  // Use the same token
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+		ResponseEntity<User> response = restTemplate.exchange(
+				"http://localhost:8083/userregistry/user/{id}", 
+				HttpMethod.GET, 
+				entity, 
+				User.class, 
+				uid
+				);
+		User user = response.getBody();
+		if(user.getName()==null) {
+			throw new UserNotFound("user not found with the id "+ uid);
+		}		
+		ResponseEntity<Cruise> response2 = restTemplate.exchange(
+				"http://localhost:8083/shipmanagement/admin/cruise/{id}", 
+				HttpMethod.GET, 
+				entity, 
+				Cruise.class, 
+				cid
+				);
+		Cruise cruise = response2.getBody();		
+		int id=generateSequence("Booking");
+		booking.setId(id);
+		booking.setUser(user);
+		booking.setCruise(cruise);
+		return bookingRepository.save(booking);
+	}
+
+
 
 	@Transactional
 	public int generateSequence(String seqName) {
@@ -95,128 +129,248 @@ public class BookingService {
 	}
 
 
-    // Get all Bookings
-    public Page<Booking> getAllBookings(int page,int size) {
-    	
-    	Pageable pageable = PageRequest.of(page, size);
-        return bookingRepository.findAll(pageable);
-    }
+	// Get all Bookings
+	public Page<Booking> getAllBookings(int page,int size) {
 
-//    // Get Booking by ID
-//    public Optional<Booking> getBookingById(int id) {
-//        Optional<Booking> booking= bookingRepository.findById(id);
-//        if(booking.isPresent()) {
-//        	return booking;
-//        }
-//        else {
-//        	throw Bookingnothappen("you didnt book for this ")
-//        }
-//    }
+		Pageable pageable = PageRequest.of(page, size);
+		return bookingRepository.findAll(pageable);
+	}
+	
+	
+	public boolean cancelBookingByUserandcruise(int id,String cruiseName) {
+		HttpServletRequest request = 
+				((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		String jwtToken = request.getHeader("Authorization");  // Retrieve the token
 
-    // Delete Booking by ID
-    public boolean deleteBookingByUserandcruise(int id,String shipname) {
-    	log.error(String.valueOf(id));
-    	User user=restTemplate.getForObject("http://localhost:8080/user/{id}", User.class, id);
-        Cruise cruise=restTemplate.getForObject("http://localhost:8081/cruisesByship/{shipname}", Cruise.class, shipname);
-        if(user.getName()==null) {
-    		throw new UserNotFound("user not booked with this userid "+ id);
-    	}
-        else
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", jwtToken);  // Use the same token
+
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+
+		ResponseEntity<User> response = restTemplate.exchange(
+				"http://localhost:8083/userregistry/user/{id}", 
+				HttpMethod.GET, 
+				entity, 
+				User.class, 
+				id
+				);
+
+		User user = response.getBody();
+
+		ResponseEntity<Cruise> response2 = restTemplate.exchange(
+				"http://localhost:8083/shipmanagement/cruises/cruisesBycruiseName/{cruiseName}", 
+				HttpMethod.GET, 
+				entity, 
+				Cruise.class, 
+				cruiseName
+				);
+
+
+		Cruise cruise = response2.getBody();
+		if(user.getName()==null) {
+			throw new UserNotFound("user not booked with this userid "+ id);
+		}
+		else
 		{
-			   bookingRepository.deleteByUserAndCruise(user,cruise);
+			bookingRepository.deleteByUserAndCruise(user,cruise);
 			return true;
 		}
-    }
+	}
 
 	public Page<Booking> getBookingByUser(int id,int page,int size) {
 		Pageable pageable = PageRequest.of(page, size);
-	User user=restTemplate.getForObject("http://localhost:8080/user/{id}", User.class, id);
-	if(user.getName()!=null) {
+		HttpServletRequest request = 
+				((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		String jwtToken = request.getHeader("Authorization");  // Retrieve the token
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", jwtToken);  // Use the same token
+
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+
+		ResponseEntity<User> response = restTemplate.exchange(
+				"http://localhost:8083/userregistry/user/{id}", 
+				HttpMethod.GET, 
+				entity, 
+				User.class, 
+				id
+				);
+
+		User user = response.getBody();
 		
-		return bookingRepository.findByUser(user,pageable);
-	}
+		if(user.getName()!=null) {
+
+			return bookingRepository.findByUser(user,pageable);
+		}
 		return null;
 	}
 
-	public Page<Booking> getBookingBycruise(String name,int page,int size) {
+	public Page<Booking> getBookingBycruise(String cruiseName,int page,int size) {
 		Pageable pageable = PageRequest.of(page, size);
-        Cruise cruise=restTemplate.getForObject("http://localhost:8081/cruisesByship/{shipname}", Cruise.class, name);
+		
+
+		HttpServletRequest request = 
+				((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		String jwtToken = request.getHeader("Authorization");  // Retrieve the token
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", jwtToken);  // Use the same token
+
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+
+		ResponseEntity<Cruise> response = restTemplate.exchange(
+				"http://localhost:8083/shipmanagement/cruises/cruisesBycruiseName/{cruiseName}", 
+				HttpMethod.GET, 
+				entity, 
+				Cruise.class, 
+				cruiseName
+				);
+
+		Cruise cruise = response.getBody();
 		return bookingRepository.findBycruise(cruise,pageable);
 	}
 
 	public Page<Booking> getBookingByCruiseLine(int id,int page,int size) {
+		
+		System.err.println(size);
 		Pageable pageable = PageRequest.of(page, size);
-		// TODO Auto-generated method stub
-		  Cruiseline cruiseline=restTemplate.getForObject("http://localhost:8081/cruiseline/{id}", Cruiseline.class, id);
-		  Cruise[] cruisesArray = restTemplate.getForObject(
-				    "http://localhost:8081/cruisesBycruiseline/{cruiseline}?page=0&size=100", 
-				    Cruise[].class, 
-				    cruiseline.getName()
+		
+		HttpServletRequest request = 
+				((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		String jwtToken = request.getHeader("Authorization");  // Retrieve the token
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", jwtToken);  // Use the same token
+
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+
+		ResponseEntity<Cruiseline> response = restTemplate.exchange(
+				"http://localhost:8083/shipmanagement/admin/cruiseline/{id}", 
+				HttpMethod.GET, 
+				entity, 
+				Cruiseline.class, 
+				id
 				);
-				List<Cruise> cruises = Arrays.asList(cruisesArray);
-				List<Booking> bookings = cruises.stream()
-					    .flatMap(s -> bookingRepository.findBycruise(s,pageable).stream())
-					    .collect(Collectors.toList());
-				
-				return new PageImpl<>(bookings, pageable, bookings.size());
-//
-//		return bookings;
+		Cruiseline cruiseline = response.getBody();
+		ResponseEntity<Cruise[]> response2 = restTemplate.exchange(
+				"http://localhost:8083/shipmanagement/cruisesBycruiseline/{cruiseline}", 
+				HttpMethod.GET, 
+				entity, 
+				Cruise[].class, 
+				cruiseline.getName()
+				);
+
+		Cruise[] cruisesArray = response2.getBody();
+		List<Cruise> cruises = Arrays.asList(cruisesArray);
+		
+		List<Booking> bookings = cruises.stream()
+			    .flatMap(s -> bookingRepository.findBycruise(s, pageable).stream())
+			    .collect(Collectors.toList());
+
+			int start = Math.min((int) pageable.getOffset(), bookings.size());
+			int end = Math.min((start + pageable.getPageSize()), bookings.size());
+			List<Booking> paginatedList = bookings.subList(start, end);
+			return new PageImpl<>(paginatedList, pageable, bookings.size());
+
 	}
 
 	public Page<Booking> getBookingByStartdestination(String startdestination,int page,int size) {
-		
+
 		Pageable pageable = PageRequest.of(page, size);
-		Cruise[] cruisesArray = restTemplate.getForObject(
-			    "http://localhost:8081/cruisesBystartdestination/{startdestination}?page=0&size=100", 
-			    Cruise[].class, 
-			    startdestination
-			);
 
-				List<Cruise> cruises = Arrays.asList(cruisesArray);
-				List<Booking> bookings = cruises.stream()
-					    .flatMap(s -> bookingRepository.findBycruise(s,pageable).stream())
-					    .collect(Collectors.toList());
+		HttpServletRequest request = 
+				((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		String jwtToken = request.getHeader("Authorization");  // Retrieve the token
 
-		return new PageImpl<>(bookings, pageable, bookings.size());
-				
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", jwtToken);  // Use the same token
+
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+
+		ResponseEntity<Cruise[]> response2 = restTemplate.exchange(
+				"http://localhost:8083/shipmanagement/cruisesBystartdestination/{startdestination}", 
+				HttpMethod.GET, 
+				entity, 
+				Cruise[].class, 
+				startdestination
+				);
+
+		Cruise[] cruisesArray = response2.getBody();
+		List<Cruise> cruises = Arrays.asList(cruisesArray);
+		List<Booking> bookings = cruises.stream()
+		        .flatMap(s -> bookingRepository.findBycruise(s).stream())
+		        .collect(Collectors.toList());
+		int start = Math.min((int) pageable.getOffset(), bookings.size());
+		int end = Math.min((start + pageable.getPageSize()), bookings.size());
+		List<Booking> paginatedList = bookings.subList(start, end);
+		return new PageImpl<>(paginatedList, pageable, bookings.size());
 	}
 
 	public Page<Booking> getBookingByEnddestination(String enddestination,int page,int size) {
 		Pageable pageable = PageRequest.of(page, size);
-		Cruise[] cruisesArray = restTemplate.getForObject(
-			    "http://localhost:8081/cruisesByenddestination/{enddestination}?page=0&size=100", 
-			    Cruise[].class, 
-			    enddestination
-			);
 
-				List<Cruise> cruises = Arrays.asList(cruisesArray);
-				List<Booking> bookings = cruises.stream()
-					    .flatMap(s -> bookingRepository.findBycruise(s,pageable).stream())
-					    .collect(Collectors.toList());
+		HttpServletRequest request = 
+				((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		String jwtToken = request.getHeader("Authorization");  // Retrieve the token
 
-				return new PageImpl<>(bookings, pageable, bookings.size());
-	}
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", jwtToken);  // Use the same token
+
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+
+		ResponseEntity<Cruise[]> response2 = restTemplate.exchange(
+				"http://localhost:8083/shipmanagement/cruisesByenddestination/{enddestination}", 
+				HttpMethod.GET, 
+				entity, 
+				Cruise[].class, 
+				enddestination
+				);
+		Cruise[] cruisesArray = response2.getBody();
+		List<Cruise> cruises = Arrays.asList(cruisesArray);
+		List<Booking> bookings = cruises.stream()
+		        .flatMap(s -> bookingRepository.findBycruise(s).stream())
+		        .collect(Collectors.toList());
+		int start = Math.min((int) pageable.getOffset(), bookings.size());
+		int end = Math.min((start + pageable.getPageSize()), bookings.size());
+		List<Booking> paginatedList = bookings.subList(start, end);
+		return new PageImpl<>(paginatedList, pageable, bookings.size());	
+		}
 
 	public Page<Booking> getBookingByDateduration(String date1, String date2,int page,int size) {
-		
+
 		Pageable pageable = PageRequest.of(page, size);
+		String url = UriComponentsBuilder.fromHttpUrl("http://localhost:8083/shipmanagement/cruises/BybetweenDates")
+				.queryParam("startDate", date1)
+				.queryParam("endDate", date2)
+				.toUriString();
+
+		HttpServletRequest request = 
+				((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+		String jwtToken = request.getHeader("Authorization");  // Retrieve the token
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", jwtToken);  // Use the same token
+
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+
+		ResponseEntity<Cruise[]> response2 = restTemplate.exchange(
+				url, 
+				HttpMethod.GET, 
+				entity, 
+				Cruise[].class 
+				);
+
+		Cruise[] cruisesArray = response2.getBody();
 		
-		
-		String url = UriComponentsBuilder.fromHttpUrl("http://localhost:8081/cruises/BybetweenDates")
-                .queryParam("startDate", date1)
-                .queryParam("endDate", date2)
-                .toUriString();
-		// TODO Auto-generated method stub
-		Cruise[] cruisesArray = restTemplate.getForObject(url, Cruise[].class);
-
-
-				List<Cruise> cruises = Arrays.asList(cruisesArray);
-				List<Booking> bookings = cruises.stream()
-					    .flatMap(s -> bookingRepository.findBycruise(s,pageable).stream())
-					    .collect(Collectors.toList());
-
-				return new PageImpl<>(bookings, pageable, bookings.size());
+		List<Cruise> cruises = Arrays.asList(cruisesArray);
+		List<Booking> bookings = cruises.stream()
+		        .flatMap(s -> bookingRepository.findBycruise(s).stream())
+		        .collect(Collectors.toList());
+		int start = Math.min((int) pageable.getOffset(), bookings.size());
+		int end = Math.min((start + pageable.getPageSize()), bookings.size());
+		List<Booking> paginatedList = bookings.subList(start, end);
+		return new PageImpl<>(paginatedList, pageable, bookings.size());
 	}
-	
-	
+
+
 }

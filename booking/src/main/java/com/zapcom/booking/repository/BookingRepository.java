@@ -1,5 +1,7 @@
 package com.zapcom.booking.repository;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -21,5 +23,6 @@ public interface BookingRepository extends MongoRepository<Booking, Integer>{
 	public void deleteByUserAndCruise(User user,Cruise cruise);
 
 	public Page<Booking> findBycruise(Cruise cruise, Pageable pageable);
+	public List<Booking> findBycruise(Cruise cruise);
 
 }

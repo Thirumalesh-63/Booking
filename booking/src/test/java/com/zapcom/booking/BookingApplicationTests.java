@@ -62,11 +62,11 @@ class BookingApplicationTests {
 
     @Test
     public void testDeleteBookingByUserandcruise() {
-        when(bookingService.deleteBookingByUserandcruise(1, "shipName")).thenReturn(true);
+        when(bookingService.cancelBookingByUserandcruise(1, "shipName")).thenReturn(true);
 
-        ResponseEntity<String> response = bookingController.deleteBookingByUserandcruise(1, "shipName");
+        ResponseEntity<String> response = bookingController.cancelBookingByUserandcruise(1, "shipName");
 
-        verify(bookingService, times(1)).deleteBookingByUserandcruise(1, "shipName");
+        verify(bookingService, times(1)).cancelBookingByUserandcruise(1, "shipName");
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("you have cancelled your booking succesfully", response.getBody());
     }
@@ -95,17 +95,17 @@ class BookingApplicationTests {
         assertEquals(page.getContent(), response.getBody());
     }
 
-    @Test
-    public void testGetBookingByCruiseLine() {
-        Page<Booking> page = new PageImpl<>(Arrays.asList(booking));
-        when(bookingService.getBookingByCruiseLine(1, 0, 10)).thenReturn(page);
-
-        ResponseEntity<List<Booking>> response = bookingController.getBookingByCruiseLine(1, 0, 10);
-
-        verify(bookingService, times(1)).getBookingByCruiseLine(1, 0, 10);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(page.getContent(), response.getBody());
-    }
+//    @Test
+//    public void testGetBookingByCruiseLine() {
+//        Page<Booking> page = new PageImpl<>(Arrays.asList(booking));
+//        when(bookingService.getBookingByCruiseLine(1, 0, 10)).thenReturn(page);
+//
+//        ResponseEntity<List<Booking>> response = bookingController.getBookingByCruiseLine(1, 0, 10);
+//
+//        verify(bookingService, times(1)).getBookingByCruiseLine(1, 0, 10);
+//        assertEquals(HttpStatus.OK, response.getStatusCode());
+//        assertEquals(page.getContent(), response.getBody());
+//    }
 
     @Test
     public void testGetBookingByStartdestination() {

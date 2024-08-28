@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,6 +19,7 @@ import com.zapcom.booking.service.BookingService;
 import com.zapcom.common.model.Booking;
 
 @RestController
+@RequestMapping("bookingmanagement")
 public class BookingController {
 	
 	
@@ -33,7 +35,7 @@ public class BookingController {
     }
 
     // Get All Bookings
-    @GetMapping("/booking")
+    @GetMapping("/admin/booking")
     public ResponseEntity<List<Booking>> getAllBookings(
     		@RequestParam(defaultValue = "0") int page,@RequestParam(defaultValue = "10") int size) {
         Page<Booking> bookings = bookingService.getAllBookings(page,size);
@@ -42,10 +44,10 @@ public class BookingController {
 
 
     // Delete Booking by ID
-    @DeleteMapping("/booking/{id}/{shipname}")
-    public ResponseEntity<String> deleteBookingByUserandcruise(@PathVariable int id,@PathVariable String shipname) {
+    @DeleteMapping("/booking/{id}/{cruiseName}")
+    public ResponseEntity<String> cancelBookingByUserandcruise(@PathVariable int id,@PathVariable String cruiseName) {
        
-        boolean isDeleted =  bookingService.deleteBookingByUserandcruise(id,shipname);
+        boolean isDeleted =  bookingService.cancelBookingByUserandcruise(id,cruiseName);
 	    if (isDeleted) {
 	        return new ResponseEntity<>("you have cancelled your booking succesfully",HttpStatus.OK);
 	    } else {
@@ -62,33 +64,33 @@ public class BookingController {
     }
     
     
-    @GetMapping("/booking/ByCruise/{id}")
-    public ResponseEntity<List<Booking>> getBookingBycruise(@PathVariable String name,
+    @GetMapping("/admin/booking/ByCruise/{cruiseName}")
+    public ResponseEntity<List<Booking>> getBookingBycruise(@PathVariable String cruiseName,
     		@RequestParam(defaultValue = "0") int page,@RequestParam(defaultValue = "10") int size) {
-        Page<Booking> bookings = bookingService.getBookingBycruise(name,page,size);
+        Page<Booking> bookings = bookingService.getBookingBycruise(cruiseName,page,size);
         return new ResponseEntity<>(bookings.getContent(), HttpStatus.OK);
     }
     
-    @GetMapping("/booking/ByCruiseLine/{id}")
+    @GetMapping("/admin/booking/ByCruiseLine/{id}")
     public ResponseEntity<List<Booking>> getBookingByCruiseLine(@PathVariable int id,
     		@RequestParam(defaultValue = "0") int page,@RequestParam(defaultValue = "10") int size) {
         Page<Booking> bookings = bookingService.getBookingByCruiseLine(id,page,size);
         return new ResponseEntity<>(bookings.getContent(), HttpStatus.OK);
     }
-    @GetMapping("/booking/ByStartdestination/{startdestination}")
+    @GetMapping("/admin/booking/ByStartdestination/{startdestination}")
     public ResponseEntity<List<Booking>> getBookingByStartdestination(@PathVariable String startdestination,
     		@RequestParam(defaultValue = "0") int page,@RequestParam(defaultValue = "10") int size) {
         Page<Booking> bookings = bookingService.getBookingByStartdestination(startdestination,page,size);
         return new ResponseEntity<>(bookings.getContent(), HttpStatus.OK);
     }
-    @GetMapping("/booking/Byenddestination/{enddestination}")
+    @GetMapping("/admin/booking/Byenddestination/{enddestination}")
     public ResponseEntity<List<Booking>> getBookingByEnddestination(@PathVariable String enddestination,
     		@RequestParam(defaultValue = "0") int page,@RequestParam(defaultValue = "10") int size) {
     	
         Page<Booking> bookings = bookingService.getBookingByEnddestination(enddestination,page,size);
         return new ResponseEntity<>(bookings.getContent(), HttpStatus.OK);
     }
-    @GetMapping("/booking/ByDateduration/{date1}/{date2}")
+    @GetMapping("/admin/booking/ByDateduration/{date1}/{date2}")
     public ResponseEntity<List<Booking>> getBookingByDateduration(@PathVariable String date1,@PathVariable String date2,
     		@RequestParam(defaultValue = "0") int page,@RequestParam(defaultValue = "10") int size) {
     	
