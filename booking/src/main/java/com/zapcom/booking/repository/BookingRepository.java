@@ -25,4 +25,6 @@ public interface BookingRepository extends MongoRepository<Booking, Integer>{
 	public Page<Booking> findBycruise(Cruise cruise, Pageable pageable);
 	public List<Booking> findBycruise(Cruise cruise);
 
+	public Booking findByUserAndCruise(User user, Cruise cruise);
+
 }
